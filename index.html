@@ -144,11 +144,11 @@
         
         <input type="password" id="password-input" placeholder="Пароль" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all">
         
-        <div id="auth-error" class="text-red-500 text-xs mb-4 hidden">Неверный пароль или ошибка данных</div>
+        <div id="auth-error" class="text-red-500 text-xs mb-4 hidden">Ошибка</div>
         
         <button id="login-btn" class="w-full bg-blue-500 text-white p-4 rounded-xl font-bold hover:bg-blue-600 transition-all shadow-md active:scale-95">Войти / Регистрация</button>
         
-        <p class="mt-4 text-[10px] text-gray-400">Если вы входите впервые, пароль будет установлен для этого имени.</p>
+        <p class="mt-4 text-[10px] text-gray-400">Пароль сохраняется при первой регистрации имени.</p>
     </div>
 </div>
 
@@ -165,7 +165,7 @@
         <div id="users-list" class="flex-1 overflow-y-auto">
             <div class="flex flex-col items-center justify-center h-full text-gray-400 p-8 text-center text-sm">
                 <div class="loader mb-4"></div>
-                Загрузка контактов...
+                Загрузка...
             </div>
         </div>
 
@@ -197,7 +197,7 @@
         <div id="messages-area" class="flex-1 overflow-y-auto p-6 flex flex-col space-y-1">
             <div id="chat-welcome" class="m-auto text-center max-w-xs">
                 <div class="bg-black/20 backdrop-blur-md text-white rounded-2xl p-4 text-sm">
-                    Выберите пользователя слева, чтобы начать общение
+                    Выберите пользователя слева
                 </div>
             </div>
         </div>
@@ -220,12 +220,22 @@
     import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, serverTimestamp, orderBy, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // Инициализация Firebase
-    const firebaseConfig = JSON.parse(__firebase_config);
+    // ДАННЫЕ ИЗ ТВОЕГО СКРИНШОТА
+    const firebaseConfig = {
+        apiKey: "AIzaSyAlZlsZBFQlr702pr-hAq89OWTND5JoSwQ",
+        authDomain: "telegramclone-d153d.firebaseapp.com",
+        projectId: "telegramclone-d153d",
+        storageBucket: "telegramclone-d153d.firebasestorage.app",
+        messagingSenderId: "718418974581",
+        appId: "1:718418974581:web:142c671b83244eb77d4f3c",
+        measurementId: "G-S9WKXJJ18F"
+    };
+
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'tg-web-v2';
+    // appId должен соответствовать правилам безопасности (используем ID проекта или переданный)
+    const activeAppId = typeof __app_id !== 'undefined' ? __app_id : 'telegramclone-d153d';
 
     let currentUser = null;
     let activeChatUserId = null;
@@ -254,14 +264,18 @@
         const name = ui.usernameInput.value.trim().toLowerCase();
         const password = ui.passwordInput.value.trim();
         
-        if (!name || !password) return;
+        if (!name || !password) {
+            ui.authError.innerText = "Введите имя и пароль";
+            ui.authError.classList.remove('hidden');
+            return;
+        }
         
         ui.loginBtn.disabled = true;
         ui.authError.classList.add('hidden');
         ui.loginBtn.innerHTML = '<div class="loader mx-auto"></div>';
 
         try {
-            // Сначала входим анонимно
+            // Анонимный вход для инициализации сессии
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                 await signInWithCustomToken(auth, __initial_auth_token);
             } else {
@@ -269,50 +283,43 @@
             }
             
             const user = auth.currentUser;
-            
-            // Проверяем, существует ли пользователь с таким именем в базе
-            // Для этого мы используем документ, ID которого — это его имя (логин)
-            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'accounts', name);
+            if (!user) throw new Error("Auth failed");
+
+            // Работаем в путях по правилу 1: /artifacts/{appId}/public/data/...
+            const userRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'accounts', name);
             const userDoc = await getDoc(userRef);
 
             if (userDoc.exists()) {
-                // Если существует, проверяем пароль
-                const userData = userDoc.data();
-                if (userData.password !== password) {
-                    ui.authError.innerText = "Неверный пароль для этого логина";
-                    ui.authError.classList.remove('hidden');
-                    ui.loginBtn.disabled = false;
-                    ui.loginBtn.innerText = "Войти / Регистрация";
-                    return;
+                const data = userDoc.data();
+                if (data.password !== password) {
+                    throw new Error("Wrong password");
                 }
-                // Если пароль верный, сохраняем uid для работы
-                currentUser = { ...userData, uid: userData.uid };
+                currentUser = { ...data, uid: data.uid };
             } else {
-                // Если не существует, создаем новый аккаунт
+                // Новый пользователь
                 const newUser = {
                     uid: user.uid,
                     name: name,
                     password: password,
-                    lastSeen: serverTimestamp()
+                    createdAt: serverTimestamp()
                 };
                 await setDoc(userRef, newUser);
-                // Дублируем в коллекцию users для поиска
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.uid), {
+                // Добавляем в общий список для поиска
+                await setDoc(doc(db, 'artifacts', activeAppId, 'public', 'data', 'users', user.uid), {
                     uid: user.uid,
                     name: name
                 });
                 currentUser = newUser;
             }
 
-            // Успешный вход
             ui.authOverlay.style.display = 'none';
             ui.currentUserDisplay.innerText = currentUser.name;
             ui.myAvatar.innerText = currentUser.name.charAt(0).toUpperCase();
             loadUsers();
 
         } catch (e) {
-            console.error("Auth Error:", e);
-            ui.authError.innerText = "Ошибка сервера. Попробуйте снова.";
+            console.error(e);
+            ui.authError.innerText = e.message === "Wrong password" ? "Неверный пароль" : "Ошибка БД. Проверьте Rules в консоли Firebase.";
             ui.authError.classList.remove('hidden');
             ui.loginBtn.disabled = false;
             ui.loginBtn.innerText = "Войти / Регистрация";
@@ -320,13 +327,10 @@
     };
 
     ui.loginBtn.onclick = login;
-    ui.usernameInput.onkeypress = (e) => e.key === 'Enter' && ui.passwordInput.focus();
-    ui.passwordInput.onkeypress = (e) => e.key === 'Enter' && login();
 
     function loadUsers() {
         if (!currentUser) return;
-        // Загружаем всех пользователей кроме себя
-        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
+        const q = query(collection(db, 'artifacts', activeAppId, 'public', 'data', 'users'));
         onSnapshot(q, (snap) => {
             ui.usersList.innerHTML = '';
             snap.forEach(docSnap => {
@@ -336,21 +340,19 @@
                 const el = document.createElement('div');
                 el.className = `user-item p-4 flex items-center gap-4 border-b border-gray-50 ${activeChatUserId === u.uid ? 'active' : ''}`;
                 el.innerHTML = `
-                    <div class="w-12 h-12 rounded-full bg-blue-400 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                    <div class="w-12 h-12 rounded-full bg-blue-400 flex items-center justify-center text-white font-bold text-lg">
                         ${u.name.charAt(0).toUpperCase()}
                     </div>
                     <div class="flex-1 overflow-hidden">
                         <div class="font-bold truncate">${u.name}</div>
-                        <div class="text-xs text-gray-500 truncate">Нажмите для общения</div>
+                        <div class="text-xs text-gray-500">Нажми, чтобы написать</div>
                     </div>
                 `;
                 el.onclick = () => selectChat(u);
                 ui.usersList.appendChild(el);
             });
-            if (ui.usersList.innerHTML === '') {
-                ui.usersList.innerHTML = '<div class="p-8 text-center text-gray-400 text-sm">Пока никого нет. Пригласите друга!</div>';
-            }
-        });
+            if (!ui.usersList.children.length) ui.usersList.innerHTML = '<div class="p-8 text-center text-gray-400">Никого нет</div>';
+        }, (err) => console.error(err));
     }
 
     function selectChat(user) {
@@ -360,20 +362,14 @@
         if (ui.welcome) ui.welcome.style.display = 'none';
         ui.chatWithName.innerText = user.name;
         ui.chatAvatar.innerText = user.name.charAt(0).toUpperCase();
-        
-        // Визуальная подсветка активного пользователя
-        const items = document.querySelectorAll('.user-item');
-        items.forEach(it => it.classList.remove('active'));
-        
         loadMessages();
     }
 
     function loadMessages() {
         if (unsubscribeMessages) unsubscribeMessages();
         const roomId = [currentUser.uid, activeChatUserId].sort().join('_');
-        
         const q = query(
-            collection(db, 'artifacts', appId, 'public', 'data', 'chats', roomId, 'messages'), 
+            collection(db, 'artifacts', activeAppId, 'public', 'data', 'chats', roomId, 'messages'), 
             orderBy('timestamp', 'asc')
         );
         
@@ -384,10 +380,7 @@
                 const mine = m.senderId === currentUser.uid;
                 const el = document.createElement('div');
                 el.className = `message-bubble ${mine ? 'message-sent' : 'message-received'}`;
-                
-                const date = m.timestamp ? m.timestamp.toDate() : new Date();
-                const time = date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                
+                const time = m.timestamp ? new Date(m.timestamp.toDate()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
                 el.innerHTML = `<div>${m.text}</div><span class="timestamp">${time}</span>`;
                 ui.messagesArea.appendChild(el);
             });
@@ -398,19 +391,15 @@
     async function send() {
         const text = ui.messageInput.value.trim();
         if (!text || !activeChatUserId) return;
-        
         const roomId = [currentUser.uid, activeChatUserId].sort().join('_');
         ui.messageInput.value = '';
-        
         try {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chats', roomId, 'messages'), {
+            await addDoc(collection(db, 'artifacts', activeAppId, 'public', 'data', 'chats', roomId, 'messages'), {
                 text: text,
                 senderId: currentUser.uid,
                 timestamp: serverTimestamp()
             });
-        } catch (e) {
-            console.error("Send Error:", e);
-        }
+        } catch (e) { console.error(e); }
     }
 
     ui.sendBtn.onclick = send;
