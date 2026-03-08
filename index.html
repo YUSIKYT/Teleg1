@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Web Clone</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --tg-blue: #2481cc;
+            --tg-bg: #f4f4f5;
+            --tg-white: #ffffff;
+            --tg-gray: #8e8e93;
+            --tg-border: #dfe1e5;
+        }
+
+        body {
+            background-color: var(--tg-bg);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .chat-container {
+            height: calc(100vh - 40px);
+            max-width: 1200px;
+            margin: 20px auto;
+            background: var(--tg-white);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: flex;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 350px;
+            border-right: 1px solid var(--tg-border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            background-repeat: repeat;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 8px 12px;
+            border-radius: 15px;
+            margin-bottom: 8px;
+            position: relative;
+            font-size: 15px;
+            word-wrap: break-word;
+        }
+
+        .message-sent {
+            background-color: #effdde;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message-received {
+            background-color: var(--tg-white);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .timestamp {
+            font-size: 10px;
+            color: var(--tg-gray);
+            margin-left: 8px;
+            float: right;
+            margin-top: 4px;
+        }
+
+        /* Auth Overlay */
+        #auth-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .auth-card {
+            background: white;
+            padding: 32px;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--tg-blue);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .user-item:hover {
+            background-color: #f1f1f1;
+            cursor: pointer;
+        }
+        .user-item.active {
+            background-color: var(--tg-blue);
+            color: white;
+        }
+        .user-item.active .status { color: #e0e0e0; }
+    </style>
+</head>
+<body>
+
+<!-- Аутентификация -->
+<div id="auth-overlay">
+    <div class="auth-card">
+        <i class="fa-brands fa-telegram text-6xl text-blue-500 mb-4"></i>
+        <h2 class="text-2xl font-bold mb-2">Вход в Telegram</h2>
+        <p class="text-gray-500 mb-6">Введите ваше имя, чтобы начать общение</p>
+        <input type="text" id="username-input" placeholder="Ваше имя" class="w-full p-3 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <button id="login-btn" class="w-full bg-blue-500 text-white p-3 rounded-lg font-bold hover:bg-blue-600 transition">Войти</button>
+    </div>
+</div>
+
+<div class="chat-container">
+    <!-- Боковая панель -->
+    <div class="sidebar">
+        <div class="p-4 border-bottom bg-white flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-bars text-gray-500 cursor-pointer"></i>
+                <input type="text" placeholder="Поиск" class="bg-gray-100 rounded-full px-4 py-1 focus:outline-none text-sm w-48">
+            </div>
+        </div>
+        
+        <div id="users-list" class="flex-1 overflow-y-auto">
+            <!-- Список пользователей будет здесь -->
+            <div class="p-8 text-center text-gray-400">Загрузка пользователей...</div>
+        </div>
+
+        <div class="p-3 border-t text-xs text-center text-gray-400">
+            Вы вошли как: <span id="current-user-display" class="font-bold">...</span>
+        </div>
+    </div>
+
+    <!-- Основное окно чата -->
+    <div class="main-chat">
+        <!-- Шапка чата -->
+        <div id="chat-header" class="hidden p-3 bg-white border-b flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div id="chat-avatar" class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">?</div>
+                <div>
+                    <div id="chat-with-name" class="font-bold">Выберите чат</div>
+                    <div class="text-xs text-blue-500">в сети</div>
+                </div>
+            </div>
+            <div class="flex gap-4 text-gray-500">
+                <i class="fa-solid fa-magnifying-glass cursor-pointer"></i>
+                <i class="fa-solid fa-phone cursor-pointer"></i>
+                <i class="fa-solid fa-ellipsis-vertical cursor-pointer"></i>
+            </div>
+        </div>
+
+        <!-- Сообщения -->
+        <div id="messages-area" class="flex-1 overflow-y-auto p-4 flex flex-col">
+            <div class="m-auto text-center bg-black/10 rounded-full px-4 py-1 text-sm text-white backdrop-blur-sm">
+                Выберите, кому написать
+            </div>
+        </div>
+
+        <!-- Поле ввода -->
+        <div id="input-area" class="hidden p-3 bg-white flex items-center gap-3">
+            <i class="fa-solid fa-paperclip text-gray-400 text-xl cursor-pointer"></i>
+            <input type="text" id="message-input" placeholder="Напишите сообщение..." class="flex-1 focus:outline-none p-2 text-sm">
+            <i class="fa-regular fa-face-smile text-gray-400 text-xl cursor-pointer"></i>
+            <button id="send-btn" class="text-blue-500 px-2">
+                <i class="fa-solid fa-paper-plane text-xl"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Инициализация
+    const firebaseConfig = JSON.parse(__firebase_config);
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'tg-clone-app';
+
+    // Состояние приложения
+    let currentUser = null;
+    let activeChatUserId = null;
+    let unsubscribeMessages = null;
+
+    const authOverlay = document.getElementById('auth-overlay');
+    const usernameInput = document.getElementById('username-input');
+    const loginBtn = document.getElementById('login-btn');
+    const usersList = document.getElementById('users-list');
+    const messagesArea = document.getElementById('messages-area');
+    const messageInput = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+    const chatHeader = document.getElementById('chat-header');
+    const inputArea = document.getElementById('input-area');
+    const chatWithName = document.getElementById('chat-with-name');
+    const chatAvatar = document.getElementById('chat-avatar');
+    const currentUserDisplay = document.getElementById('current-user-display');
+
+    // 1. Вход пользователя
+    loginBtn.onclick = async () => {
+        const name = usernameInput.value.trim();
+        if (!name) return;
+
+        loginBtn.disabled = true;
+        loginBtn.innerHTML = '<div class="loader"></div>';
+
+        try {
+            await signInAnonymously(auth);
+            const user = auth.currentUser;
+            
+            // Сохраняем пользователя в БД
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.uid), {
+                uid: user.uid,
+                name: name,
+                lastSeen: serverTimestamp()
+            });
+
+            authOverlay.style.display = 'none';
+        } catch (error) {
+            console.error(error);
+            alert("Ошибка входа. Попробуйте снова.");
+            loginBtn.disabled = false;
+            loginBtn.innerText = "Войти";
+        }
+    };
+
+    // 2. Слушатель состояния авторизации
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            const userDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.uid));
+            if (userDoc.exists()) {
+                currentUser = userDoc.data();
+                authOverlay.style.display = 'none';
+                currentUserDisplay.innerText = currentUser.name;
+                initApp();
+            }
+        }
+    });
+
+    // 3. Инициализация списка пользователей
+    function initApp() {
+        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
+        onSnapshot(q, (snapshot) => {
+            usersList.innerHTML = '';
+            snapshot.forEach(doc => {
+                const userData = doc.data();
+                if (userData.uid === currentUser.uid) return; // Не показываем себя
+
+                const userEl = document.createElement('div');
+                userEl.className = `user-item p-3 flex items-center gap-3 border-b border-gray-100 transition ${activeChatUserId === userData.uid ? 'active' : ''}`;
+                userEl.innerHTML = `
+                    <div class="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center text-white font-bold text-lg">
+                        ${userData.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="flex-1 overflow-hidden">
+                        <div class="font-bold truncate">${userData.name}</div>
+                        <div class="status text-xs text-gray-500 truncate">Нажмите, чтобы написать</div>
+                    </div>
+                `;
+                userEl.onclick = () => selectChat(userData);
+                usersList.appendChild(userEl);
+            });
+        }, (err) => console.error("Ошибка загрузки пользователей:", err));
+    }
+
+    // 4. Выбор чата
+    function selectChat(targetUser) {
+        activeChatUserId = targetUser.uid;
+        
+        // UI изменения
+        chatHeader.classList.remove('hidden');
+        inputArea.classList.remove('hidden');
+        chatWithName.innerText = targetUser.name;
+        chatAvatar.innerText = targetUser.name.charAt(0).toUpperCase();
+
+        // Обновляем активный класс в списке
+        document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
+        // Находим нужный элемент (упрощенно перерисовываем или ищем по атрибуту)
+        
+        loadMessages();
+    }
+
+    // 5. Загрузка сообщений
+    function loadMessages() {
+        if (unsubscribeMessages) unsubscribeMessages();
+
+        // Генерируем ID комнаты (сортируем UID, чтобы у обоих был один ID)
+        const roomId = [currentUser.uid, activeChatUserId].sort().join('_');
+        
+        const q = query(
+            collection(db, 'artifacts', appId, 'public', 'data', 'chats', roomId, 'messages'),
+            orderBy('timestamp', 'asc')
+        );
+
+        messagesArea.innerHTML = '<div class="m-auto loader"></div>';
+
+        unsubscribeMessages = onSnapshot(q, (snapshot) => {
+            messagesArea.innerHTML = '';
+            if (snapshot.empty) {
+                messagesArea.innerHTML = '<div class="m-auto text-center text-gray-400 text-sm">Нет сообщений. Напишите первым!</div>';
+            }
+
+            snapshot.forEach(doc => {
+                const msg = doc.data();
+                const isMine = msg.senderId === currentUser.uid;
+                
+                const msgEl = document.createElement('div');
+                msgEl.className = `message-bubble ${isMine ? 'message-sent' : 'message-received'}`;
+                
+                const time = msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...';
+                
+                msgEl.innerHTML = `
+                    ${msg.text}
+                    <span class="timestamp">${time}</span>
+                `;
+                messagesArea.appendChild(msgEl);
+            });
+            
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }, (err) => {
+            console.error("Ошибка сообщений:", err);
+            messagesArea.innerHTML = '<div class="p-4 text-red-500">Ошибка загрузки чата</div>';
+        });
+    }
+
+    // 6. Отправка сообщения
+    async function sendMessage() {
+        const text = messageInput.value.trim();
+        if (!text || !activeChatUserId) return;
+
+        const roomId = [currentUser.uid, activeChatUserId].sort().join('_');
+        const msgData = {
+            text: text,
+            senderId: currentUser.uid,
+            timestamp: serverTimestamp()
+        };
+
+        messageInput.value = '';
+
+        try {
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chats', roomId, 'messages'), msgData);
+        } catch (error) {
+            console.error("Ошибка отправки:", error);
+        }
+    }
+
+    sendBtn.onclick = sendMessage;
+    messageInput.onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
+
+</script>
+
+</body>
+</html>
