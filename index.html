@@ -2,7 +2,9 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Telegram Web Clone</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -20,6 +22,7 @@
             background-color: var(--tg-bg);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             height: 100vh;
+            margin: 0;
             overflow: hidden;
             display: flex;
             align-items: center;
@@ -27,14 +30,21 @@
         }
 
         .chat-container {
-            height: 95vh;
-            width: 95vw;
+            height: 100vh;
+            width: 100vw;
             max-width: 1200px;
             background: var(--tg-white);
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             display: flex;
             overflow: hidden;
+        }
+
+        @media (min-width: 768px) {
+            .chat-container {
+                height: 95vh;
+                width: 95vw;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            }
         }
 
         .sidebar {
@@ -107,7 +117,7 @@
             border-bottom: 1px solid #f9f9f9;
         }
         .user-item:hover { background: #f4f4f5; }
-        .user-item.active { background: var(--tg-blue); color: white !important; }
+        .user-item.active { background: var(--tg-blue) !important; color: white !important; }
 
         #auth-overlay {
             position: fixed;
@@ -151,12 +161,11 @@
             <span>Войти / Зарегистрироваться</span>
         </button>
         
-        <p class="mt-4 text-[10px] text-gray-400 uppercase tracking-widest">Powered by Firebase</p>
+        <p class="mt-4 text-[10px] text-gray-400 uppercase tracking-widest">Проверка API ключа...</p>
     </div>
 </div>
 
 <div class="chat-container">
-    <!-- Список чатов -->
     <div class="sidebar">
         <div class="p-4 border-b">
             <div class="relative">
@@ -180,7 +189,6 @@
         </div>
     </div>
 
-    <!-- Область сообщений -->
     <div class="main-chat">
         <div id="chat-header" class="hidden p-3 bg-white border-b flex items-center justify-between shadow-sm">
             <div class="flex items-center gap-3">
@@ -211,9 +219,9 @@
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // Данные в точности как на скриншоте image_6317c6.jpg
+    // Прямая настройка данных из консоли проекта
     const firebaseConfig = {
-        apiKey: "AIzaSyAlZlsZBFQlr702pr-hAq89OWTND5JoSwQ",
+        apiKey: "AIzaSyAlZlsZBFQlr702pr-hAq89OWTND5JoSwQ", // Проверьте, нет ли пробелов по краям
         authDomain: "telegramclone-d153d.firebaseapp.com",
         projectId: "telegramclone-d153d",
         storageBucket: "telegramclone-d153d.firebasestorage.app",
@@ -222,10 +230,16 @@
         measurementId: "G-S9WKXJJ18F"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    let app, auth, db;
     const appId = 'telegramclone-d153d';
+
+    try {
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+    } catch (err) {
+        console.error("Firebase Init Error:", err);
+    }
 
     let currentUser = null;
     let activeChatUserId = null;
@@ -264,10 +278,10 @@
         ui.error.classList.add('hidden');
 
         try {
-            // Вход в систему (Анонимный)
-            const { user } = await signInAnonymously(auth);
+            // Вход
+            const userCredential = await signInAnonymously(auth);
+            const user = userCredential.user;
 
-            // Проверка аккаунта в базе
             const accountRef = doc(db, 'artifacts', appId, 'public', 'data', 'accounts', name);
             const accountDoc = await getDoc(accountRef);
 
@@ -277,10 +291,8 @@
                 }
                 currentUser = { ...accountDoc.data(), uid: user.uid };
             } else {
-                // Создаем новый
                 currentUser = { uid: user.uid, name: name, password: pass };
                 await setDoc(accountRef, currentUser);
-                // Добавляем в список пользователей
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.uid), {
                     uid: user.uid,
                     name: name
@@ -293,7 +305,12 @@
             loadUsers();
 
         } catch (e) {
-            showError(e.message);
+            console.error("Full Login Error:", e);
+            let message = e.message;
+            if (e.code === 'auth/api-key-not-valid') {
+                message = "Критическая ошибка: API ключ невалиден. Проверьте настройки проекта в Firebase.";
+            }
+            showError(message);
             ui.loginBtn.disabled = false;
             ui.loginBtn.innerText = "Войти / Зарегистрироваться";
         }
@@ -325,6 +342,8 @@
                 item.onclick = () => selectChat(u);
                 ui.usersList.appendChild(item);
             });
+        }, (err) => {
+            console.error("Snapshot error:", err);
         });
     }
 
@@ -357,6 +376,8 @@
                 ui.messagesArea.appendChild(bubble);
             });
             ui.messagesArea.scrollTop = ui.messagesArea.scrollHeight;
+        }, (err) => {
+            console.error("Messages list error:", err);
         });
     }
 
@@ -367,11 +388,15 @@
         ui.messageInput.value = '';
         const roomId = [currentUser.uid, activeChatUserId].sort().join('_');
         
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chats', roomId, 'messages'), {
-            text,
-            senderId: currentUser.uid,
-            timestamp: serverTimestamp()
-        });
+        try {
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chats', roomId, 'messages'), {
+                text,
+                senderId: currentUser.uid,
+                timestamp: serverTimestamp()
+            });
+        } catch (err) {
+            console.error("Send Error:", err);
+        }
     }
 
     ui.sendBtn.onclick = sendMessage;
