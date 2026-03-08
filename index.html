@@ -144,11 +144,11 @@
         
         <input type="password" id="password-input" placeholder="Пароль" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all">
         
-        <div id="auth-error" class="text-red-500 text-xs mb-4 hidden">Ошибка</div>
+        <div id="auth-error" class="text-red-500 text-xs mb-4 hidden p-2 bg-red-50 rounded">Ошибка</div>
         
         <button id="login-btn" class="w-full bg-blue-500 text-white p-4 rounded-xl font-bold hover:bg-blue-600 transition-all shadow-md active:scale-95">Войти / Регистрация</button>
         
-        <p class="mt-4 text-[10px] text-gray-400">Пароль сохраняется при первой регистрации имени.</p>
+        <p class="mt-4 text-[10px] text-gray-400">Убедитесь, что в Firebase включен "Anonymous Auth".</p>
     </div>
 </div>
 
@@ -164,7 +164,6 @@
         
         <div id="users-list" class="flex-1 overflow-y-auto">
             <div class="flex flex-col items-center justify-center h-full text-gray-400 p-8 text-center text-sm">
-                <div class="loader mb-4"></div>
                 Загрузка...
             </div>
         </div>
@@ -217,10 +216,10 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, serverTimestamp, orderBy, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // ПЕРЕД ИСПОЛЬЗОВАНИЕМ: Настройте Rules в Firebase Console (см. инструкции выше)
+    // ПЕРЕД ИСПОЛЬЗОВАНИЕМ: Включите Anonymous Auth в консоли Firebase
     const firebaseConfig = {
         apiKey: "AIzaSyAlZlsZBFQlr702pr-hAq89OWTND5JoSwQ",
         authDomain: "telegramclone-d153d.firebaseapp.com",
@@ -259,13 +258,13 @@
         welcome: document.getElementById('chat-welcome')
     };
 
+    // Главная функция входа
     const login = async () => {
         const name = ui.usernameInput.value.trim().toLowerCase();
         const password = ui.passwordInput.value.trim();
         
         if (!name || !password) {
-            ui.authError.innerText = "Введите имя и пароль";
-            ui.authError.classList.remove('hidden');
+            showError("Введите логин и пароль");
             return;
         }
         
@@ -274,24 +273,28 @@
         ui.loginBtn.innerHTML = '<div class="loader mx-auto"></div>';
 
         try {
-            // Обязательно авторизуемся в Firebase
-            await signInAnonymously(auth);
+            // ШАГ 1: Анонимная авторизация (проверка включения провайдера)
+            const authResult = await signInAnonymously(auth).catch(err => {
+                if (err.code === 'auth/operation-not-allowed') {
+                    throw new Error("Включите 'Anonymous' в меню Authentication -> Sign-in method!");
+                }
+                throw err;
+            });
             
-            const user = auth.currentUser;
-            if (!user) throw new Error("Не удалось подключиться к серверу");
+            const user = authResult.user;
 
-            // Путь должен соответствовать правилам безопасности (Правило 1)
+            // ШАГ 2: Проверка аккаунта в базе данных
             const userRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'accounts', name);
             const userDoc = await getDoc(userRef);
 
             if (userDoc.exists()) {
                 const data = userDoc.data();
                 if (data.password !== password) {
-                    throw new Error("Неверный пароль");
+                    throw new Error("Неверный пароль для этого имени");
                 }
                 currentUser = { ...data, uid: data.uid };
             } else {
-                // Регистрируем нового пользователя
+                // Регистрируем нового
                 const newUser = {
                     uid: user.uid,
                     name: name,
@@ -299,7 +302,6 @@
                     createdAt: serverTimestamp()
                 };
                 await setDoc(userRef, newUser);
-                // Сохраняем в список пользователей для поиска
                 await setDoc(doc(db, 'artifacts', activeAppId, 'public', 'data', 'users', user.uid), {
                     uid: user.uid,
                     name: name
@@ -313,22 +315,21 @@
             loadUsers();
 
         } catch (e) {
-            console.error("Login Error:", e);
-            let msg = "Ошибка БД. Проверьте вкладку Rules в консоли Firebase.";
-            if (e.message === "Неверный пароль") msg = "Неверный пароль";
-            if (e.code === 'permission-denied') msg = "Доступ запрещен. Настройте Rules в консоли Firebase.";
-            
-            ui.authError.innerText = msg;
-            ui.authError.classList.remove('hidden');
+            console.error(e);
+            showError(e.message);
             ui.loginBtn.disabled = false;
             ui.loginBtn.innerText = "Войти / Регистрация";
         }
     };
 
+    function showError(text) {
+        ui.authError.innerText = text;
+        ui.authError.classList.remove('hidden');
+    }
+
     ui.loginBtn.onclick = login;
 
     function loadUsers() {
-        if (!currentUser) return;
         const q = query(collection(db, 'artifacts', activeAppId, 'public', 'data', 'users'));
         onSnapshot(q, (snap) => {
             ui.usersList.innerHTML = '';
@@ -350,12 +351,7 @@
                 el.onclick = () => selectChat(u);
                 ui.usersList.appendChild(el);
             });
-            if (!ui.usersList.children.length) ui.usersList.innerHTML = '<div class="p-8 text-center text-gray-400">Никого нет</div>';
-        }, (err) => {
-            console.error("Users load error:", err);
-            if(err.code === 'permission-denied') {
-                ui.usersList.innerHTML = '<div class="p-4 text-red-500 text-xs">Ошибка доступа к списку. Проверьте Rules в консоли.</div>';
-            }
+            if (!ui.usersList.children.length) ui.usersList.innerHTML = '<div class="p-8 text-center text-gray-400">Пока никого нет</div>';
         });
     }
 
@@ -389,7 +385,7 @@
                 ui.messagesArea.appendChild(el);
             });
             ui.messagesArea.scrollTo({ top: ui.messagesArea.scrollHeight, behavior: 'smooth' });
-        }, (err) => console.error("Messages load error:", err));
+        });
     }
 
     async function send() {
