@@ -220,7 +220,7 @@
     import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, serverTimestamp, orderBy, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // ДАННЫЕ ИЗ ТВОЕГО СКРИНШОТА
+    // ПЕРЕД ИСПОЛЬЗОВАНИЕМ: Настройте Rules в Firebase Console (см. инструкции выше)
     const firebaseConfig = {
         apiKey: "AIzaSyAlZlsZBFQlr702pr-hAq89OWTND5JoSwQ",
         authDomain: "telegramclone-d153d.firebaseapp.com",
@@ -234,8 +234,7 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    // appId должен соответствовать правилам безопасности (используем ID проекта или переданный)
-    const activeAppId = typeof __app_id !== 'undefined' ? __app_id : 'telegramclone-d153d';
+    const activeAppId = 'telegramclone-d153d';
 
     let currentUser = null;
     let activeChatUserId = null;
@@ -275,28 +274,24 @@
         ui.loginBtn.innerHTML = '<div class="loader mx-auto"></div>';
 
         try {
-            // Анонимный вход для инициализации сессии
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
-            }
+            // Обязательно авторизуемся в Firebase
+            await signInAnonymously(auth);
             
             const user = auth.currentUser;
-            if (!user) throw new Error("Auth failed");
+            if (!user) throw new Error("Не удалось подключиться к серверу");
 
-            // Работаем в путях по правилу 1: /artifacts/{appId}/public/data/...
+            // Путь должен соответствовать правилам безопасности (Правило 1)
             const userRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'accounts', name);
             const userDoc = await getDoc(userRef);
 
             if (userDoc.exists()) {
                 const data = userDoc.data();
                 if (data.password !== password) {
-                    throw new Error("Wrong password");
+                    throw new Error("Неверный пароль");
                 }
                 currentUser = { ...data, uid: data.uid };
             } else {
-                // Новый пользователь
+                // Регистрируем нового пользователя
                 const newUser = {
                     uid: user.uid,
                     name: name,
@@ -304,7 +299,7 @@
                     createdAt: serverTimestamp()
                 };
                 await setDoc(userRef, newUser);
-                // Добавляем в общий список для поиска
+                // Сохраняем в список пользователей для поиска
                 await setDoc(doc(db, 'artifacts', activeAppId, 'public', 'data', 'users', user.uid), {
                     uid: user.uid,
                     name: name
@@ -318,8 +313,12 @@
             loadUsers();
 
         } catch (e) {
-            console.error(e);
-            ui.authError.innerText = e.message === "Wrong password" ? "Неверный пароль" : "Ошибка БД. Проверьте Rules в консоли Firebase.";
+            console.error("Login Error:", e);
+            let msg = "Ошибка БД. Проверьте вкладку Rules в консоли Firebase.";
+            if (e.message === "Неверный пароль") msg = "Неверный пароль";
+            if (e.code === 'permission-denied') msg = "Доступ запрещен. Настройте Rules в консоли Firebase.";
+            
+            ui.authError.innerText = msg;
             ui.authError.classList.remove('hidden');
             ui.loginBtn.disabled = false;
             ui.loginBtn.innerText = "Войти / Регистрация";
@@ -352,7 +351,12 @@
                 ui.usersList.appendChild(el);
             });
             if (!ui.usersList.children.length) ui.usersList.innerHTML = '<div class="p-8 text-center text-gray-400">Никого нет</div>';
-        }, (err) => console.error(err));
+        }, (err) => {
+            console.error("Users load error:", err);
+            if(err.code === 'permission-denied') {
+                ui.usersList.innerHTML = '<div class="p-4 text-red-500 text-xs">Ошибка доступа к списку. Проверьте Rules в консоли.</div>';
+            }
+        });
     }
 
     function selectChat(user) {
@@ -385,7 +389,7 @@
                 ui.messagesArea.appendChild(el);
             });
             ui.messagesArea.scrollTo({ top: ui.messagesArea.scrollHeight, behavior: 'smooth' });
-        });
+        }, (err) => console.error("Messages load error:", err));
     }
 
     async function send() {
@@ -399,7 +403,7 @@
                 senderId: currentUser.uid,
                 timestamp: serverTimestamp()
             });
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Send Error:", e); }
     }
 
     ui.sendBtn.onclick = send;
