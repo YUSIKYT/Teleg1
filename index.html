@@ -2,313 +2,178 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Telegram Web Clone</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Telegram Clone</title>
+    <!-- Tailwind CSS для красивого дизайна -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root {
-            --tg-blue: #2481cc;
-            --tg-bg: #f4f4f5;
-            --tg-white: #ffffff;
-            --tg-border: #dfe1e5;
-            --tg-chat-bg: #e7ebf0;
+        body { background-color: #0e1621; color: white; font-family: sans-serif; }
+        .chat-bg { 
+            background-color: #0e1621;
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); 
+            background-size: cover; 
+            background-blend-mode: overlay;
         }
-
-        body {
-            background-color: var(--tg-bg);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            height: 100vh;
-            margin: 0;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .chat-container {
-            height: 100vh;
-            width: 100vw;
-            max-width: 1200px;
-            background: var(--tg-white);
-            display: flex;
-            overflow: hidden;
-        }
-
-        @media (min-width: 768px) {
-            .chat-container {
-                height: 95vh;
-                width: 95vw;
-                border-radius: 12px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            }
-        }
-
-        .sidebar {
-            width: 320px;
-            border-right: 1px solid var(--tg-border);
-            display: flex;
-            flex-direction: column;
-            background: #fff;
-        }
-
-        .main-chat {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background-color: var(--tg-chat-bg);
-            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-            background-repeat: repeat;
-        }
-
-        .message-bubble {
-            max-width: 75%;
-            padding: 8px 12px;
-            border-radius: 12px;
-            margin-bottom: 4px;
-            position: relative;
-            font-size: 15px;
-            line-height: 1.4;
-            word-wrap: break-word;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-
-        .message-sent {
-            background-color: #effdde;
-            align-self: flex-end;
-            border-bottom-right-radius: 2px;
-        }
-
-        .message-received {
-            background-color: var(--tg-white);
-            align-self: flex-start;
-            border-bottom-left-radius: 2px;
-        }
-
-        .user-item {
-            cursor: pointer;
-            transition: background 0.2s;
-            padding: 12px 16px;
-            border-bottom: 1px solid #f9f9f9;
-        }
-        .user-item:hover { background: #f4f4f5; }
-        .user-item.active { background: var(--tg-blue) !important; color: white !important; }
-
-        #auth-overlay {
-            position: fixed;
-            inset: 0;
-            background: #2481cc;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-        }
-
-        .loader {
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #2481cc;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .message-in { background-color: #182533; border-radius: 10px 10px 10px 0; }
+        .message-out { background-color: #2b5278; border-radius: 10px 10px 0 10px; align-self: flex-end; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #2b5278; border-radius: 10px; }
     </style>
 </head>
-<body>
+<body class="h-screen flex items-center justify-center p-4">
 
-<div id="auth-overlay">
-    <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
-        <div class="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
-            <i class="fa-brands fa-telegram text-3xl text-white"></i>
+    <!-- Экран входа / регистрации -->
+    <div id="auth-screen" class="bg-[#17212b] p-8 rounded-lg shadow-xl w-full max-w-md">
+        <h2 class="text-2xl font-bold mb-6 text-center text-white">Вход в Telegram 2</h2>
+        <div class="space-y-4">
+            <input id="email" type="email" placeholder="Email (любой, например test@mail.ru)" class="w-full p-3 rounded bg-[#0e1621] border border-[#2b5278] text-white focus:outline-none">
+            <input id="password" type="password" placeholder="Пароль (минимум 6 символов)" class="w-full p-3 rounded bg-[#0e1621] border border-[#2b5278] text-white focus:outline-none">
+            <button onclick="handleAuth('login')" class="w-full bg-[#2481cc] hover:bg-[#28a1ff] p-3 rounded font-bold transition text-white">Войти</button>
+            <button onclick="handleAuth('register')" class="w-full border border-[#2481cc] text-[#2481cc] hover:bg-[#2481cc] hover:text-white p-3 rounded font-bold transition">Создать аккаунт</button>
         </div>
-        <h2 class="text-xl font-bold mb-2">Вход в Telegram</h2>
-        <p class="text-gray-400 text-sm mb-6">Введите имя и пароль для синхронизации</p>
-        
-        <input type="text" id="username-input" placeholder="Имя пользователя" class="w-full p-3 border rounded-xl mb-3 focus:outline-none focus:border-blue-500">
-        <input type="password" id="password-input" placeholder="Пароль" class="w-full p-3 border rounded-xl mb-4 focus:outline-none focus:border-blue-500">
-        
-        <div id="auth-error" class="text-red-500 text-xs mb-4 hidden"></div>
-        
-        <button id="login-btn" class="w-full bg-blue-500 text-white p-3 rounded-xl font-bold hover:bg-blue-600 transition-all flex items-center justify-center gap-2">
-            <span>Войти</span>
-        </button>
-    </div>
-</div>
-
-<div class="chat-container">
-    <div class="sidebar">
-        <div class="p-4 border-b font-bold text-lg">Чаты</div>
-        <div id="users-list" class="flex-1 overflow-y-auto"></div>
-        <div class="p-4 border-t bg-gray-50 flex items-center gap-3">
-            <div id="my-avatar" class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white">?</div>
-            <div id="current-user-display" class="font-bold">Вы</div>
-        </div>
+        <p id="auth-error" class="text-red-400 mt-4 text-sm hidden text-center"></p>
     </div>
 
-    <div class="main-chat">
-        <div id="chat-header" class="hidden p-3 bg-white border-b flex items-center gap-3">
-            <div id="chat-avatar" class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-white">?</div>
-            <div id="chat-with-name" class="font-bold">Чат</div>
+    <!-- Главный экран чата -->
+    <div id="chat-screen" class="hidden w-full max-w-4xl h-[90vh] bg-[#17212b] rounded-lg shadow-2xl flex flex-col overflow-hidden">
+        <div class="bg-[#17212b] p-4 border-b border-[#0e1621] flex justify-between items-center">
+            <div>
+                <h3 class="font-bold text-white">Общий чат</h3>
+                <p id="user-status" class="text-xs text-gray-400">...</p>
+            </div>
+            <button onclick="logout()" class="text-gray-400 hover:text-white">Выйти</button>
         </div>
-        <div id="messages-area" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2"></div>
-        <div id="input-area" class="hidden p-4 bg-white border-t flex items-center gap-4">
-            <input type="text" id="message-input" placeholder="Написать сообщение..." class="flex-1 focus:outline-none">
-            <button id="send-btn" class="text-blue-500 text-xl"><i class="fa-solid fa-paper-plane"></i></button>
+
+        <div id="messages-container" class="flex-1 overflow-y-auto p-4 flex flex-col space-y-3 chat-bg">
+            <!-- Здесь будут появляться сообщения -->
         </div>
+
+        <form id="message-form" class="p-4 bg-[#17212b] flex space-x-2 border-t border-[#0e1621]">
+            <input id="message-input" type="text" placeholder="Написать сообщение..." autocomplete="off" class="flex-1 p-3 rounded-full bg-[#0e1621] border border-[#2b5278] text-white focus:outline-none">
+            <button type="submit" class="bg-[#2481cc] p-3 rounded-full hover:bg-[#28a1ff] text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+            </button>
+        </form>
     </div>
-</div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // Данные из твоего скриншота
-    const firebaseConfig = {
-        apiKey: "AIzaSyA1ZlsZbFQ1r7O2pr-hAq89OwTND5JoSwQ",
-        authDomain: "telegramclone-d153d.firebaseapp.com",
-        projectId: "telegramclone-d153d",
-        storageBucket: "telegramclone-d153d.firebasestorage.app",
-        messagingSenderId: "710410974581",
-        appId: "1:710410974581:web:142c671b03244eb77d4f3c"
-    };
+        // ТВОИ КЛЮЧИ ИЗ СКРИНШОТА
+        const manualConfig = {
+            apiKey: "AIzaSyDQfLxYzKGRohppEmJ8X7Xl8w35Mmt5K1Y",
+            authDomain: "telegram2-d3ed0.firebaseapp.com",
+            projectId: "telegram2-d3ed0",
+            storageBucket: "telegram2-d3ed0.firebasestorage.app",
+            messagingSenderId: "774354782781",
+            appId: "1:774354782781:web:813ee118414182b6d0f854",
+            measurementId: "G-R8P2T05ZSJ"
+        };
 
-    const appId = 'telegramclone-d153d';
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+        const app = initializeApp(manualConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        const authScreen = document.getElementById('auth-screen');
+        const chatScreen = document.getElementById('chat-screen');
+        const messagesContainer = document.getElementById('messages-container');
+        const messageForm = document.getElementById('message-form');
+        const messageInput = document.getElementById('message-input');
+        const userStatus = document.getElementById('user-status');
+        const authError = document.getElementById('auth-error');
 
-    let currentUser = null;
-    let activeChatUserId = null;
-    let unsubscribeMessages = null;
+        let currentUser = null;
 
-    const ui = {
-        authOverlay: document.getElementById('auth-overlay'),
-        username: document.getElementById('username-input'),
-        password: document.getElementById('password-input'),
-        error: document.getElementById('auth-error'),
-        loginBtn: document.getElementById('login-btn'),
-        usersList: document.getElementById('users-list'),
-        messagesArea: document.getElementById('messages-area'),
-        messageInput: document.getElementById('message-input'),
-        sendBtn: document.getElementById('send-btn'),
-        chatHeader: document.getElementById('chat-header'),
-        inputArea: document.getElementById('input-area'),
-        chatName: document.getElementById('chat-with-name'),
-        chatAvatar: document.getElementById('chat-avatar'),
-        myAvatar: document.getElementById('my-avatar'),
-        myDisplayName: document.getElementById('current-user-display')
-    };
+        // Вход и Регистрация
+        window.handleAuth = async (type) => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            authError.classList.add('hidden');
 
-    const handleLogin = async () => {
-        const name = ui.username.value.trim().toLowerCase();
-        const pass = ui.password.value.trim();
-
-        if (!name) return;
-
-        ui.loginBtn.disabled = true;
-        ui.loginBtn.innerHTML = '<div class="loader"></div>';
-
-        try {
-            // Используем имя пользователя как ID, так как Auth выдает ошибку ключа
-            const userFakeId = "user_" + name; 
-            const accountRef = doc(db, 'artifacts', appId, 'public', 'data', 'accounts', name);
-            const accountDoc = await getDoc(accountRef);
-
-            if (accountDoc.exists()) {
-                if (accountDoc.data().password !== pass) {
-                    throw new Error("Неверный пароль");
-                }
-                currentUser = accountDoc.data();
-            } else {
-                currentUser = { uid: userFakeId, name: name, password: pass };
-                await setDoc(accountRef, currentUser);
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', userFakeId), {
-                    uid: userFakeId,
-                    name: name
-                });
+            if (!email || !password) {
+                authError.innerText = "Заполните все поля!";
+                authError.classList.remove('hidden');
+                return;
             }
 
-            ui.authOverlay.style.display = 'none';
-            ui.myDisplayName.innerText = currentUser.name;
-            ui.myAvatar.innerText = currentUser.name[0].toUpperCase();
-            loadUsers();
-        } catch (e) {
-            ui.error.innerText = e.message;
-            ui.error.classList.remove('hidden');
-            ui.loginBtn.disabled = false;
-            ui.loginBtn.innerText = "Войти";
+            try {
+                if (type === 'register') {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                } else {
+                    await signInWithEmailAndPassword(auth, email, password);
+                }
+            } catch (error) {
+                authError.innerText = "Ошибка: " + error.message;
+                authError.classList.remove('hidden');
+            }
+        };
+
+        window.logout = () => signOut(auth);
+
+        // Следим за тем, вошел ли пользователь
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                authScreen.classList.add('hidden');
+                chatScreen.classList.remove('hidden');
+                userStatus.innerText = `Вы: ${user.email}`;
+                loadMessages();
+            } else {
+                currentUser = null;
+                authScreen.classList.remove('hidden');
+                chatScreen.classList.add('hidden');
+            }
+        });
+
+        // Загрузка сообщений
+        function loadMessages() {
+            const messagesRef = collection(db, 'messages');
+            const q = query(messagesRef, orderBy('createdAt', 'asc'));
+
+            onSnapshot(q, (snapshot) => {
+                messagesContainer.innerHTML = '';
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const isMe = data.uid === currentUser?.uid;
+                    
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = `max-w-[80%] p-3 shadow-md mb-2 ${isMe ? 'message-out' : 'message-in'}`;
+                    
+                    msgDiv.innerHTML = `
+                        <p class="text-[10px] text-blue-400 font-bold mb-1">${isMe ? 'Вы' : data.email.split('@')[0]}</p>
+                        <p class="text-sm text-white">${data.text}</p>
+                    `;
+                    messagesContainer.appendChild(msgDiv);
+                });
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }, (error) => {
+                console.error("Ошибка! Проверь, включен ли Firestore в режиме Test Mode:", error);
+            });
         }
-    };
 
-    ui.loginBtn.onclick = handleLogin;
+        // Отправка сообщения
+        messageForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const text = messageInput.value.trim();
+            if (!text || !currentUser) return;
 
-    function loadUsers() {
-        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
-        onSnapshot(q, (snap) => {
-            ui.usersList.innerHTML = '';
-            snap.forEach(docSnap => {
-                const u = docSnap.data();
-                if (u.uid === currentUser.uid) return;
-
-                const div = document.createElement('div');
-                div.className = `user-item flex items-center gap-3 ${activeChatUserId === u.uid ? 'active' : ''}`;
-                div.innerHTML = `
-                    <div class="w-10 h-10 rounded-full bg-blue-400 flex items-center justify-center text-white font-bold">
-                        ${u.name[0].toUpperCase()}
-                    </div>
-                    <span>${u.name}</span>
-                `;
-                div.onclick = () => selectChat(u);
-                ui.usersList.appendChild(div);
-            });
-        });
-    }
-
-    function selectChat(user) {
-        activeChatUserId = user.uid;
-        ui.chatHeader.classList.remove('hidden');
-        ui.inputArea.classList.remove('hidden');
-        ui.chatName.innerText = user.name;
-        ui.chatAvatar.innerText = user.name[0].toUpperCase();
-        loadMessages();
-    }
-
-    function loadMessages() {
-        if (unsubscribeMessages) unsubscribeMessages();
-        const roomId = [currentUser.uid, activeChatUserId].sort().join('_');
-        const q = query(
-            collection(db, 'artifacts', appId, 'public', 'data', 'chats', roomId, 'messages'),
-            orderBy('timestamp', 'asc')
-        );
-
-        unsubscribeMessages = onSnapshot(q, (snap) => {
-            ui.messagesArea.innerHTML = '';
-            snap.forEach(d => {
-                const m = d.data();
-                const b = document.createElement('div');
-                b.className = `message-bubble ${m.senderId === currentUser.uid ? 'message-sent' : 'message-received'}`;
-                b.innerText = m.text;
-                ui.messagesArea.appendChild(b);
-            });
-            ui.messagesArea.scrollTop = ui.messagesArea.scrollHeight;
-        });
-    }
-
-    async function sendMessage() {
-        const text = ui.messageInput.value.trim();
-        if (!text || !activeChatUserId) return;
-        ui.messageInput.value = '';
-        const roomId = [currentUser.uid, activeChatUserId].sort().join('_');
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chats', roomId, 'messages'), {
-            text,
-            senderId: currentUser.uid,
-            timestamp: serverTimestamp()
-        });
-    }
-
-    ui.sendBtn.onclick = sendMessage;
-    ui.messageInput.onkeydown = (e) => e.key === 'Enter' && sendMessage();
-</script>
+            try {
+                const messagesRef = collection(db, 'messages');
+                await addDoc(messagesRef, {
+                    text: text,
+                    uid: currentUser.uid,
+                    email: currentUser.email,
+                    createdAt: serverTimestamp()
+                });
+                messageInput.value = '';
+            } catch (error) {
+                console.error("Ошибка отправки:", error);
+            }
+        };
+    </script>
 </body>
 </html>
