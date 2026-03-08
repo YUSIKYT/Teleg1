@@ -13,6 +13,7 @@
             --tg-white: #ffffff;
             --tg-gray: #8e8e93;
             --tg-border: #dfe1e5;
+            --tg-chat-bg: #e7ebf0;
         }
 
         body {
@@ -20,175 +21,195 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             height: 100vh;
             overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .chat-container {
-            height: calc(100vh - 40px);
+            height: 95vh;
+            width: 95vw;
             max-width: 1200px;
-            margin: 20px auto;
             background: var(--tg-white);
             border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             display: flex;
             overflow: hidden;
         }
 
         .sidebar {
-            width: 350px;
+            width: 320px;
             border-right: 1px solid var(--tg-border);
             display: flex;
             flex-direction: column;
+            background: #fff;
         }
 
         .main-chat {
             flex: 1;
             display: flex;
             flex-direction: column;
+            background-color: var(--tg-chat-bg);
             background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
             background-repeat: repeat;
         }
 
         .message-bubble {
-            max-width: 70%;
+            max-width: 75%;
             padding: 8px 12px;
-            border-radius: 15px;
-            margin-bottom: 8px;
+            border-radius: 12px;
+            margin-bottom: 4px;
             position: relative;
             font-size: 15px;
+            line-height: 1.4;
             word-wrap: break-word;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .message-sent {
             background-color: #effdde;
             align-self: flex-end;
-            border-bottom-right-radius: 4px;
+            border-bottom-right-radius: 2px;
         }
 
         .message-received {
             background-color: var(--tg-white);
             align-self: flex-start;
-            border-bottom-left-radius: 4px;
+            border-bottom-left-radius: 2px;
         }
 
         .timestamp {
             font-size: 10px;
-            color: var(--tg-gray);
+            color: #a1a1a1;
             margin-left: 8px;
             float: right;
-            margin-top: 4px;
+            margin-top: 6px;
         }
 
-        /* Auth Overlay */
+        #messages-area::-webkit-scrollbar {
+            width: 6px;
+        }
+        #messages-area::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.1);
+            border-radius: 10px;
+        }
+
+        .user-item {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .user-item:hover { background: #f4f4f5; }
+        .user-item.active { background: var(--tg-blue); color: white !important; }
+        .user-item.active .text-gray-500 { color: #e0e0e0 !important; }
+
         #auth-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.5);
+            background: linear-gradient(135deg, #2481cc 0%, #1c66a3 100%);
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
-        }
-
-        .auth-card {
-            background: white;
-            padding: 32px;
-            border-radius: 16px;
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
+            z-index: 2000;
         }
 
         .loader {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid var(--tg-blue);
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid var(--tg-blue);
             border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-            display: inline-block;
+            width: 20px;
+            height: 20px;
+            animation: spin 0.8s linear infinite;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .user-item:hover {
-            background-color: #f1f1f1;
-            cursor: pointer;
-        }
-        .user-item.active {
-            background-color: var(--tg-blue);
-            color: white;
-        }
-        .user-item.active .status { color: #e0e0e0; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<!-- Аутентификация -->
 <div id="auth-overlay">
-    <div class="auth-card">
-        <i class="fa-brands fa-telegram text-6xl text-blue-500 mb-4"></i>
-        <h2 class="text-2xl font-bold mb-2">Вход в Telegram</h2>
-        <p class="text-gray-500 mb-6">Введите ваше имя, чтобы начать общение</p>
-        <input type="text" id="username-input" placeholder="Ваше имя" class="w-full p-3 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
-        <button id="login-btn" class="w-full bg-blue-500 text-white p-3 rounded-lg font-bold hover:bg-blue-600 transition">Войти</button>
+    <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
+        <div class="w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <i class="fa-brands fa-telegram text-4xl text-white"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Telegram Web</h2>
+        <p class="text-gray-500 mb-8 text-sm">Вход по логину и паролю</p>
+        
+        <input type="text" id="username-input" placeholder="Логин (имя)" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl mb-3 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all">
+        
+        <input type="password" id="password-input" placeholder="Пароль" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all">
+        
+        <div id="auth-error" class="text-red-500 text-xs mb-4 hidden">Неверный пароль или ошибка данных</div>
+        
+        <button id="login-btn" class="w-full bg-blue-500 text-white p-4 rounded-xl font-bold hover:bg-blue-600 transition-all shadow-md active:scale-95">Войти / Регистрация</button>
+        
+        <p class="mt-4 text-[10px] text-gray-400">Если вы входите впервые, пароль будет установлен для этого имени.</p>
     </div>
 </div>
 
 <div class="chat-container">
-    <!-- Боковая панель -->
     <div class="sidebar">
-        <div class="p-4 border-bottom bg-white flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <i class="fa-solid fa-bars text-gray-500 cursor-pointer"></i>
-                <input type="text" placeholder="Поиск" class="bg-gray-100 rounded-full px-4 py-1 focus:outline-none text-sm w-48">
+        <div class="p-4 flex items-center gap-4">
+            <i class="fa-solid fa-bars text-gray-400 text-xl cursor-pointer"></i>
+            <div class="relative flex-1">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                <input type="text" placeholder="Поиск" class="w-full bg-gray-100 rounded-full py-2 pl-9 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-300">
             </div>
         </div>
         
         <div id="users-list" class="flex-1 overflow-y-auto">
-            <!-- Список пользователей будет здесь -->
-            <div class="p-8 text-center text-gray-400">Загрузка пользователей...</div>
+            <div class="flex flex-col items-center justify-center h-full text-gray-400 p-8 text-center text-sm">
+                <div class="loader mb-4"></div>
+                Загрузка контактов...
+            </div>
         </div>
 
-        <div class="p-3 border-t text-xs text-center text-gray-400">
-            Вы вошли как: <span id="current-user-display" class="font-bold">...</span>
+        <div class="p-4 border-t bg-gray-50 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div id="my-avatar" class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold shadow-sm">?</div>
+                <span id="current-user-display" class="text-xs font-semibold text-gray-700 truncate max-w-[120px]">Имя</span>
+            </div>
+            <i class="fa-solid fa-gear text-gray-400 cursor-pointer hover:text-blue-500"></i>
         </div>
     </div>
 
-    <!-- Основное окно чата -->
     <div class="main-chat">
-        <!-- Шапка чата -->
-        <div id="chat-header" class="hidden p-3 bg-white border-b flex items-center justify-between">
+        <div id="chat-header" class="hidden p-3 bg-white border-b flex items-center justify-between shadow-sm z-10">
             <div class="flex items-center gap-3">
-                <div id="chat-avatar" class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">?</div>
+                <div id="chat-avatar" class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold shadow-sm">?</div>
                 <div>
-                    <div id="chat-with-name" class="font-bold">Выберите чат</div>
-                    <div class="text-xs text-blue-500">в сети</div>
+                    <div id="chat-with-name" class="font-bold text-gray-800">Имя контакта</div>
+                    <div class="text-xs text-blue-500 font-medium">в сети</div>
                 </div>
             </div>
-            <div class="flex gap-4 text-gray-500">
-                <i class="fa-solid fa-magnifying-glass cursor-pointer"></i>
-                <i class="fa-solid fa-phone cursor-pointer"></i>
-                <i class="fa-solid fa-ellipsis-vertical cursor-pointer"></i>
+            <div class="flex gap-5 text-gray-400 pr-2">
+                <i class="fa-solid fa-phone cursor-pointer hover:text-blue-500"></i>
+                <i class="fa-solid fa-video cursor-pointer hover:text-blue-500"></i>
+                <i class="fa-solid fa-ellipsis-vertical cursor-pointer hover:text-blue-500"></i>
             </div>
         </div>
 
-        <!-- Сообщения -->
-        <div id="messages-area" class="flex-1 overflow-y-auto p-4 flex flex-col">
-            <div class="m-auto text-center bg-black/10 rounded-full px-4 py-1 text-sm text-white backdrop-blur-sm">
-                Выберите, кому написать
+        <div id="messages-area" class="flex-1 overflow-y-auto p-6 flex flex-col space-y-1">
+            <div id="chat-welcome" class="m-auto text-center max-w-xs">
+                <div class="bg-black/20 backdrop-blur-md text-white rounded-2xl p-4 text-sm">
+                    Выберите пользователя слева, чтобы начать общение
+                </div>
             </div>
         </div>
 
-        <!-- Поле ввода -->
-        <div id="input-area" class="hidden p-3 bg-white flex items-center gap-3">
-            <i class="fa-solid fa-paperclip text-gray-400 text-xl cursor-pointer"></i>
-            <input type="text" id="message-input" placeholder="Напишите сообщение..." class="flex-1 focus:outline-none p-2 text-sm">
-            <i class="fa-regular fa-face-smile text-gray-400 text-xl cursor-pointer"></i>
-            <button id="send-btn" class="text-blue-500 px-2">
-                <i class="fa-solid fa-paper-plane text-xl"></i>
+        <div id="input-area" class="hidden p-4 bg-white flex items-center gap-4 border-t">
+            <i class="fa-regular fa-face-smile text-gray-400 text-2xl cursor-pointer hover:text-blue-500"></i>
+            <div class="flex-1 relative">
+                <input type="text" id="message-input" placeholder="Написать сообщение..." class="w-full focus:outline-none py-2 text-md">
+            </div>
+            <i class="fa-solid fa-paperclip text-gray-400 text-xl cursor-pointer hover:text-blue-500"></i>
+            <button id="send-btn" class="bg-blue-500 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-600 transition-all active:scale-90">
+                <i class="fa-solid fa-paper-plane text-sm ml-0.5"></i>
             </button>
         </div>
     </div>
@@ -196,186 +217,204 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, serverTimestamp, orderBy, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // Инициализация
+    // Инициализация Firebase
     const firebaseConfig = JSON.parse(__firebase_config);
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'tg-clone-app';
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'tg-web-v2';
 
-    // Состояние приложения
     let currentUser = null;
     let activeChatUserId = null;
     let unsubscribeMessages = null;
 
-    const authOverlay = document.getElementById('auth-overlay');
-    const usernameInput = document.getElementById('username-input');
-    const loginBtn = document.getElementById('login-btn');
-    const usersList = document.getElementById('users-list');
-    const messagesArea = document.getElementById('messages-area');
-    const messageInput = document.getElementById('message-input');
-    const sendBtn = document.getElementById('send-btn');
-    const chatHeader = document.getElementById('chat-header');
-    const inputArea = document.getElementById('input-area');
-    const chatWithName = document.getElementById('chat-with-name');
-    const chatAvatar = document.getElementById('chat-avatar');
-    const currentUserDisplay = document.getElementById('current-user-display');
+    const ui = {
+        authOverlay: document.getElementById('auth-overlay'),
+        usernameInput: document.getElementById('username-input'),
+        passwordInput: document.getElementById('password-input'),
+        authError: document.getElementById('auth-error'),
+        loginBtn: document.getElementById('login-btn'),
+        usersList: document.getElementById('users-list'),
+        messagesArea: document.getElementById('messages-area'),
+        messageInput: document.getElementById('message-input'),
+        sendBtn: document.getElementById('send-btn'),
+        chatHeader: document.getElementById('chat-header'),
+        inputArea: document.getElementById('input-area'),
+        chatWithName: document.getElementById('chat-with-name'),
+        chatAvatar: document.getElementById('chat-avatar'),
+        myAvatar: document.getElementById('my-avatar'),
+        currentUserDisplay: document.getElementById('current-user-display'),
+        welcome: document.getElementById('chat-welcome')
+    };
 
-    // 1. Вход пользователя
-    loginBtn.onclick = async () => {
-        const name = usernameInput.value.trim();
-        if (!name) return;
-
-        loginBtn.disabled = true;
-        loginBtn.innerHTML = '<div class="loader"></div>';
+    const login = async () => {
+        const name = ui.usernameInput.value.trim().toLowerCase();
+        const password = ui.passwordInput.value.trim();
+        
+        if (!name || !password) return;
+        
+        ui.loginBtn.disabled = true;
+        ui.authError.classList.add('hidden');
+        ui.loginBtn.innerHTML = '<div class="loader mx-auto"></div>';
 
         try {
-            await signInAnonymously(auth);
+            // Сначала входим анонимно
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+            
             const user = auth.currentUser;
             
-            // Сохраняем пользователя в БД
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.uid), {
-                uid: user.uid,
-                name: name,
-                lastSeen: serverTimestamp()
-            });
+            // Проверяем, существует ли пользователь с таким именем в базе
+            // Для этого мы используем документ, ID которого — это его имя (логин)
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'accounts', name);
+            const userDoc = await getDoc(userRef);
 
-            authOverlay.style.display = 'none';
-        } catch (error) {
-            console.error(error);
-            alert("Ошибка входа. Попробуйте снова.");
-            loginBtn.disabled = false;
-            loginBtn.innerText = "Войти";
+            if (userDoc.exists()) {
+                // Если существует, проверяем пароль
+                const userData = userDoc.data();
+                if (userData.password !== password) {
+                    ui.authError.innerText = "Неверный пароль для этого логина";
+                    ui.authError.classList.remove('hidden');
+                    ui.loginBtn.disabled = false;
+                    ui.loginBtn.innerText = "Войти / Регистрация";
+                    return;
+                }
+                // Если пароль верный, сохраняем uid для работы
+                currentUser = { ...userData, uid: userData.uid };
+            } else {
+                // Если не существует, создаем новый аккаунт
+                const newUser = {
+                    uid: user.uid,
+                    name: name,
+                    password: password,
+                    lastSeen: serverTimestamp()
+                };
+                await setDoc(userRef, newUser);
+                // Дублируем в коллекцию users для поиска
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.uid), {
+                    uid: user.uid,
+                    name: name
+                });
+                currentUser = newUser;
+            }
+
+            // Успешный вход
+            ui.authOverlay.style.display = 'none';
+            ui.currentUserDisplay.innerText = currentUser.name;
+            ui.myAvatar.innerText = currentUser.name.charAt(0).toUpperCase();
+            loadUsers();
+
+        } catch (e) {
+            console.error("Auth Error:", e);
+            ui.authError.innerText = "Ошибка сервера. Попробуйте снова.";
+            ui.authError.classList.remove('hidden');
+            ui.loginBtn.disabled = false;
+            ui.loginBtn.innerText = "Войти / Регистрация";
         }
     };
 
-    // 2. Слушатель состояния авторизации
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            const userDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.uid));
-            if (userDoc.exists()) {
-                currentUser = userDoc.data();
-                authOverlay.style.display = 'none';
-                currentUserDisplay.innerText = currentUser.name;
-                initApp();
-            }
-        }
-    });
+    ui.loginBtn.onclick = login;
+    ui.usernameInput.onkeypress = (e) => e.key === 'Enter' && ui.passwordInput.focus();
+    ui.passwordInput.onkeypress = (e) => e.key === 'Enter' && login();
 
-    // 3. Инициализация списка пользователей
-    function initApp() {
+    function loadUsers() {
+        if (!currentUser) return;
+        // Загружаем всех пользователей кроме себя
         const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
-        onSnapshot(q, (snapshot) => {
-            usersList.innerHTML = '';
-            snapshot.forEach(doc => {
-                const userData = doc.data();
-                if (userData.uid === currentUser.uid) return; // Не показываем себя
-
-                const userEl = document.createElement('div');
-                userEl.className = `user-item p-3 flex items-center gap-3 border-b border-gray-100 transition ${activeChatUserId === userData.uid ? 'active' : ''}`;
-                userEl.innerHTML = `
-                    <div class="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center text-white font-bold text-lg">
-                        ${userData.name.charAt(0).toUpperCase()}
+        onSnapshot(q, (snap) => {
+            ui.usersList.innerHTML = '';
+            snap.forEach(docSnap => {
+                const u = docSnap.data();
+                if (u.uid === currentUser.uid) return;
+                
+                const el = document.createElement('div');
+                el.className = `user-item p-4 flex items-center gap-4 border-b border-gray-50 ${activeChatUserId === u.uid ? 'active' : ''}`;
+                el.innerHTML = `
+                    <div class="w-12 h-12 rounded-full bg-blue-400 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                        ${u.name.charAt(0).toUpperCase()}
                     </div>
                     <div class="flex-1 overflow-hidden">
-                        <div class="font-bold truncate">${userData.name}</div>
-                        <div class="status text-xs text-gray-500 truncate">Нажмите, чтобы написать</div>
+                        <div class="font-bold truncate">${u.name}</div>
+                        <div class="text-xs text-gray-500 truncate">Нажмите для общения</div>
                     </div>
                 `;
-                userEl.onclick = () => selectChat(userData);
-                usersList.appendChild(userEl);
+                el.onclick = () => selectChat(u);
+                ui.usersList.appendChild(el);
             });
-        }, (err) => console.error("Ошибка загрузки пользователей:", err));
+            if (ui.usersList.innerHTML === '') {
+                ui.usersList.innerHTML = '<div class="p-8 text-center text-gray-400 text-sm">Пока никого нет. Пригласите друга!</div>';
+            }
+        });
     }
 
-    // 4. Выбор чата
-    function selectChat(targetUser) {
-        activeChatUserId = targetUser.uid;
+    function selectChat(user) {
+        activeChatUserId = user.uid;
+        ui.chatHeader.classList.remove('hidden');
+        ui.inputArea.classList.remove('hidden');
+        if (ui.welcome) ui.welcome.style.display = 'none';
+        ui.chatWithName.innerText = user.name;
+        ui.chatAvatar.innerText = user.name.charAt(0).toUpperCase();
         
-        // UI изменения
-        chatHeader.classList.remove('hidden');
-        inputArea.classList.remove('hidden');
-        chatWithName.innerText = targetUser.name;
-        chatAvatar.innerText = targetUser.name.charAt(0).toUpperCase();
-
-        // Обновляем активный класс в списке
-        document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
-        // Находим нужный элемент (упрощенно перерисовываем или ищем по атрибуту)
+        // Визуальная подсветка активного пользователя
+        const items = document.querySelectorAll('.user-item');
+        items.forEach(it => it.classList.remove('active'));
         
         loadMessages();
     }
 
-    // 5. Загрузка сообщений
     function loadMessages() {
         if (unsubscribeMessages) unsubscribeMessages();
-
-        // Генерируем ID комнаты (сортируем UID, чтобы у обоих был один ID)
         const roomId = [currentUser.uid, activeChatUserId].sort().join('_');
         
         const q = query(
-            collection(db, 'artifacts', appId, 'public', 'data', 'chats', roomId, 'messages'),
+            collection(db, 'artifacts', appId, 'public', 'data', 'chats', roomId, 'messages'), 
             orderBy('timestamp', 'asc')
         );
-
-        messagesArea.innerHTML = '<div class="m-auto loader"></div>';
-
-        unsubscribeMessages = onSnapshot(q, (snapshot) => {
-            messagesArea.innerHTML = '';
-            if (snapshot.empty) {
-                messagesArea.innerHTML = '<div class="m-auto text-center text-gray-400 text-sm">Нет сообщений. Напишите первым!</div>';
-            }
-
-            snapshot.forEach(doc => {
-                const msg = doc.data();
-                const isMine = msg.senderId === currentUser.uid;
+        
+        unsubscribeMessages = onSnapshot(q, (snap) => {
+            ui.messagesArea.innerHTML = '';
+            snap.forEach(docSnap => {
+                const m = docSnap.data();
+                const mine = m.senderId === currentUser.uid;
+                const el = document.createElement('div');
+                el.className = `message-bubble ${mine ? 'message-sent' : 'message-received'}`;
                 
-                const msgEl = document.createElement('div');
-                msgEl.className = `message-bubble ${isMine ? 'message-sent' : 'message-received'}`;
+                const date = m.timestamp ? m.timestamp.toDate() : new Date();
+                const time = date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                 
-                const time = msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...';
-                
-                msgEl.innerHTML = `
-                    ${msg.text}
-                    <span class="timestamp">${time}</span>
-                `;
-                messagesArea.appendChild(msgEl);
+                el.innerHTML = `<div>${m.text}</div><span class="timestamp">${time}</span>`;
+                ui.messagesArea.appendChild(el);
             });
-            
-            messagesArea.scrollTop = messagesArea.scrollHeight;
-        }, (err) => {
-            console.error("Ошибка сообщений:", err);
-            messagesArea.innerHTML = '<div class="p-4 text-red-500">Ошибка загрузки чата</div>';
+            ui.messagesArea.scrollTo({ top: ui.messagesArea.scrollHeight, behavior: 'smooth' });
         });
     }
 
-    // 6. Отправка сообщения
-    async function sendMessage() {
-        const text = messageInput.value.trim();
+    async function send() {
+        const text = ui.messageInput.value.trim();
         if (!text || !activeChatUserId) return;
-
+        
         const roomId = [currentUser.uid, activeChatUserId].sort().join('_');
-        const msgData = {
-            text: text,
-            senderId: currentUser.uid,
-            timestamp: serverTimestamp()
-        };
-
-        messageInput.value = '';
-
+        ui.messageInput.value = '';
+        
         try {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chats', roomId, 'messages'), msgData);
-        } catch (error) {
-            console.error("Ошибка отправки:", error);
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chats', roomId, 'messages'), {
+                text: text,
+                senderId: currentUser.uid,
+                timestamp: serverTimestamp()
+            });
+        } catch (e) {
+            console.error("Send Error:", e);
         }
     }
 
-    sendBtn.onclick = sendMessage;
-    messageInput.onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
-
+    ui.sendBtn.onclick = send;
+    ui.messageInput.onkeypress = (e) => e.key === 'Enter' && send();
 </script>
-
 </body>
 </html>
